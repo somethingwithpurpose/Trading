@@ -3,16 +3,131 @@ import Charts
 import SwiftData
 
 struct DashboardView: View {
+    @Binding var selectedDashboard: Dashboard?
     @Environment(\.modelContext) private var modelContext
     @Query private var trades: [Trade]
-    @State private var showingAddTrade = false
+    @State private var selectedTimeFrame: ProfitTimeFrame = .total
     @State private var showingCSVImport = false
-    @State private var animateChart = false
-    @State private var selectedDashboard: Dashboard?
+    @State private var showingAddTrade = false
     
-    // Computed Properties
-    private var totalProfit: String {
-        let total = trades.reduce(0) { $0 + $1.profit }
+    var body: some View {
+        NavigationView {
+            ZStack {
+                AppTheme.backgroundColor.ignoresSafeArea()
+                
+                ScrollView {
+                    VStack(spacing: 24) {
+                        // Main Chart Box
+                        VStack(alignment: .leading, spacing: 16) {
+                            VStack(alignment: .leading, spacing: 16) {
+                                Color.clear.frame(height: 12)
+                                
+                                // Profit Display with Dropdown
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Menu {
+                                        ForEach(ProfitTimeFrame.allCases, id: \.self) { timeFrame in
+                                            Button(action: {
+                                                withAnimation {
+                                                    selectedTimeFrame = timeFrame
+                                                }
+                                            }) {
+                                                HStack {
+                                                    Text(timeFrame.rawValue + " Profit")
+                                                    if timeFrame == selectedTimeFrame {
+                                                        Image(systemName: "checkmark")
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } label: {
+                                        HStack(spacing: 4) {
+                                            Text(selectedTimeFrame.rawValue + " Profit")
+                                                .foregroundColor(.white)
+                                                .font(.system(size: 17))
+                                            Image(systemName: "chevron.down")
+                                                .foregroundColor(.white)
+                                                .imageScale(.small)
+                                        }
+                                    }
+                                    
+                                    Text("$\(calculateProfit())")
+                                        .font(.system(size: 32, weight: .bold))
+                                        .foregroundColor(calculateProfit().hasPrefix("-") ? .red : .green)
+                                }
+                                .padding(.horizontal)
+                                
+                                // Chart
+                                ProfitChartView(trades: trades, selectedTimeFrame: selectedTimeFrame)
+                                    .frame(height: 220)
+                            }
+                        }
+                        .background(Color(red: 0.11, green: 0.12, blue: 0.14))
+                        .cornerRadius(15)
+                        .padding(.horizontal)
+                        
+                        // Stats Grid
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
+                            StatBox(title: "Best Day", value: "$\(bestDay)", icon: "chart.line.uptrend.xyaxis", color: AppTheme.successColor)
+                            StatBox(title: "Worst Day", value: "$\(worstDay)", icon: "chart.line.downtrend.xyaxis", color: AppTheme.errorColor)
+                            StatBox(title: "Win Rate", value: "\(winRate)%", icon: "percent", color: AppTheme.primaryColor)
+                            StatBox(title: "R:R", value: String(format: "%.1f", riskRewardRatio), icon: "arrow.left.arrow.right", color: AppTheme.primaryColor)
+                        }
+                        .padding(.horizontal)
+                        
+                        // Upload CSV Button
+                        Button(action: { showingCSVImport = true }) {
+                            HStack {
+                                Image(systemName: "doc.text")
+                                Text("Upload CSV")
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(AppTheme.buttonColor)
+                            .cornerRadius(AppTheme.cornerRadius)
+                            .foregroundColor(.white)
+                        }
+                        .padding(.horizontal)
+                    }
+                    .padding(.vertical)
+                }
+            }
+            .navigationTitle("Dashboard")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    DashboardPicker(selectedDashboard: $selectedDashboard)
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    GlowingButton(title: "Add Trade", icon: "plus.circle.fill") {
+                        showingAddTrade = true
+                    }
+                    .scaleEffect(0.8)
+                    .padding(.trailing, -8)
+                }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .sheet(isPresented: $showingAddTrade) {
+                AddTradeView()
+            }
+        }
+    }
+    
+    // Helper functions
+    private func calculateProfit() -> String {
+        let calendar = Calendar.current
+        let filteredTrades = trades.filter { trade in
+            switch selectedTimeFrame {
+            case .total:
+                return true
+            case .weekly:
+                return calendar.isDate(trade.exitTime, equalTo: Date(), toGranularity: .weekOfYear)
+            case .monthly:
+                return calendar.isDate(trade.exitTime, equalTo: Date(), toGranularity: .month)
+            case .yearly:
+                return calendar.isDate(trade.exitTime, equalTo: Date(), toGranularity: .year)
+            }
+        }
+        
+        let total = filteredTrades.reduce(0) { $0 + $1.profit }
         return String(format: "%.2f", total)
     }
     
@@ -47,96 +162,4 @@ struct DashboardView: View {
         
         return avgLoss == 0 ? 0 : abs(avgWin / avgLoss)
     }
-    
-    var body: some View {
-        NavigationView {
-            ZStack {
-                AppTheme.backgroundColor.ignoresSafeArea()
-                
-                ScrollView {
-                    VStack(spacing: 24) {
-                        // Profit Chart
-                        ChartCard {
-                            Chart(trades) { trade in
-                                LineMark(
-                                    x: .value("Date", trade.exitTime),
-                                    y: .value("Profit", trade.profit)
-                                )
-                                .foregroundStyle(AppTheme.primaryColor)
-                                .opacity(animateChart ? 1 : 0)
-                            }
-                        }
-                        .frame(height: 220)
-                        
-                        // Total Profit
-                        HStack {
-                            Text("Total Profit")
-                                .foregroundColor(.gray)
-                            Spacer()
-                            Text("$\(totalProfit)")
-                                .foregroundColor(Double(totalProfit) ?? 0 >= 0 ? AppTheme.successColor : AppTheme.errorColor)
-                                .font(.title2.bold())
-                        }
-                        
-                        // Stats Grid
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                            StatBox(title: "Best Day", value: "$\(bestDay)", icon: "chart.line.uptrend.xyaxis", color: AppTheme.successColor)
-                            StatBox(title: "Worst Day", value: "$\(worstDay)", icon: "chart.line.downtrend.xyaxis", color: AppTheme.errorColor)
-                            StatBox(title: "Win Rate", value: "\(winRate)%", icon: "percent", color: AppTheme.primaryColor)
-                            StatBox(title: "R:R", value: String(format: "%.1f", riskRewardRatio), icon: "arrow.left.arrow.right", color: AppTheme.primaryColor)
-                        }
-                        
-                        // Progress Bar
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Profit Goal")
-                                .foregroundColor(.gray)
-                            ProgressView(value: max(0, min(Double(totalProfit) ?? 0, 3000)), total: 3000)
-                                .tint(AppTheme.primaryColor)
-                            Text("\(totalProfit)/3000")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                        }
-                        
-                        // Action Buttons
-                        HStack(spacing: 16) {
-                            Button(action: { showingCSVImport = true }) {
-                                HStack {
-                                    Image(systemName: "doc.text")
-                                    Text("Upload CSV")
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(AppTheme.buttonColor)
-                                .cornerRadius(AppTheme.cornerRadius)
-                                .foregroundColor(.white)
-                            }
-                        }
-                    }
-                    .padding()
-                }
-            }
-            .navigationTitle("Dashboard")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    DashboardPicker(selectedDashboard: $selectedDashboard)
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    GlowingButton(title: "Add Trade", icon: "plus.circle.fill") {
-                        showingAddTrade = true
-                    }
-                    .scaleEffect(0.8)
-                    .padding(.trailing, -8)
-                }
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .sheet(isPresented: $showingAddTrade) {
-                AddTradeView()
-            }
-            .onAppear {
-                withAnimation(.easeInOut(duration: 1.5)) {
-                    animateChart = true
-                }
-            }
-        }
-    }
-} 
+}

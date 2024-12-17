@@ -20,7 +20,7 @@ struct StatBox: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(AppTheme.cardBackground)
-        .cornerRadius(AppTheme.cornerRadius)
+        .background(Color(red: 0.11, green: 0.12, blue: 0.14))
+        .cornerRadius(12)
     }
 }

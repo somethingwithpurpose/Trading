@@ -2,14 +2,16 @@ import Foundation
 import SwiftData
 
 @Model
-final class Dashboard {
+class Dashboard {
+    var id: UUID
     var name: String
-    var isActive: Bool
+    @Relationship(deleteRule: .cascade) var trades: [Trade]
     var createdAt: Date
     
-    init(name: String, isActive: Bool = false) {
+    init(name: String) {
+        self.id = UUID()
         self.name = name
-        self.isActive = isActive
+        self.trades = []
         self.createdAt = Date()
     }
 } 

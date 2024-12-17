@@ -2,38 +2,36 @@ import SwiftUI
 
 struct MainTabView: View {
     @State private var selectedTab = 0
+    @State private var selectedDashboard: Dashboard?
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            DashboardView()
+            DashboardView(selectedDashboard: $selectedDashboard)
                 .tabItem {
                     Label {
                         Text("Dashboard")
                     } icon: {
                         CustomTabIcon(isSelected: selectedTab == 0, type: .dashboard)
-                            .environment(\.symbolVariants, selectedTab == 0 ? .fill : .none)
                     }
                 }
                 .tag(0)
             
-            JournalView()
+            JournalView(selectedDashboard: $selectedDashboard)
                 .tabItem {
                     Label {
                         Text("Journal")
                     } icon: {
                         CustomTabIcon(isSelected: selectedTab == 1, type: .journal)
-                            .environment(\.symbolVariants, selectedTab == 1 ? .fill : .none)
                     }
                 }
                 .tag(1)
             
-            TradesView()
+            TradesView(selectedDashboard: $selectedDashboard)
                 .tabItem {
                     Label {
                         Text("Trades")
                     } icon: {
                         CustomTabIcon(isSelected: selectedTab == 2, type: .trades)
-                            .environment(\.symbolVariants, selectedTab == 2 ? .fill : .none)
                     }
                 }
                 .tag(2)
@@ -41,4 +39,4 @@ struct MainTabView: View {
         .tint(AppTheme.primaryColor)
         .preferredColorScheme(.dark)
     }
-} 
+}

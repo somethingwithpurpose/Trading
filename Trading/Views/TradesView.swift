@@ -2,9 +2,10 @@ import SwiftUI
 import SwiftData
 
 struct TradesView: View {
+    @Binding var selectedDashboard: Dashboard?
     @Environment(\.modelContext) private var modelContext
-    @State private var showingAddTrade = false
     @Query private var trades: [Trade]
+    @State private var showingAddTrade = false
     @State private var showingDeleteAlert = false
     @State private var tradeToDelete: Trade?
     
@@ -13,7 +14,7 @@ struct TradesView: View {
             List {
                 ForEach(trades) { trade in
                     TradeRowView(trade: trade)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
                                 tradeToDelete = trade
                                 showingDeleteAlert = true
@@ -22,18 +23,18 @@ struct TradesView: View {
                             }
                         }
                 }
-                .onDelete(perform: deleteTrades)
             }
             .navigationTitle("Trades")
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showingAddTrade.toggle() }) {
-                        Label("Add Trade", systemImage: "plus")
-                    }
-                }
-                
                 ToolbarItem(placement: .navigationBarLeading) {
-                    EditButton()
+                    DashboardPicker(selectedDashboard: $selectedDashboard)
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    GlowingButton(title: "Add Trade", icon: "plus.circle.fill") {
+                        showingAddTrade = true
+                    }
+                    .scaleEffect(0.8)
+                    .padding(.trailing, -8)
                 }
             }
             .sheet(isPresented: $showingAddTrade) {
@@ -43,7 +44,8 @@ struct TradesView: View {
                 Button("Cancel", role: .cancel) {}
                 Button("Delete", role: .destructive) {
                     if let trade = tradeToDelete {
-                        deleteTrade(trade)
+                        modelContext.delete(trade)
+                        tradeToDelete = nil
                     }
                 }
             } message: {
@@ -51,20 +53,4 @@ struct TradesView: View {
             }
         }
     }
-    
-    private func deleteTrade(_ trade: Trade) {
-        withAnimation {
-            modelContext.delete(trade)
-            try? modelContext.save()
-        }
-    }
-    
-    private func deleteTrades(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(trades[index])
-            }
-            try? modelContext.save()
-        }
-    }
-} 
+}
