@@ -3,9 +3,9 @@ import SwiftData
 
 struct TradesView: View {
     @Binding var selectedDashboard: Dashboard?
+    @Binding var showingAddTrade: Bool
     @Environment(\.modelContext) private var modelContext
     @Query private var trades: [Trade]
-    @State private var showingAddTrade = false
     @State private var showingDeleteAlert = false
     @State private var tradeToDelete: Trade?
     
@@ -24,21 +24,23 @@ struct TradesView: View {
                         }
                 }
             }
-            .navigationTitle("Trades")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    DashboardPicker(selectedDashboard: $selectedDashboard)
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    GlowingButton(title: "Add Trade", icon: "plus.circle.fill") {
-                        showingAddTrade = true
-                    }
-                    .scaleEffect(0.8)
-                    .padding(.trailing, -8)
-                }
-            }
+            .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $showingAddTrade) {
-                AddTradeView()
+                AddTradeView(
+                    selectedDashboard: $selectedDashboard,
+                    isPresented: $showingAddTrade
+                )
+            }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showingAddTrade = true
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundColor(.green)
+                            .imageScale(.large)
+                    }
+                }
             }
             .alert("Delete Trade", isPresented: $showingDeleteAlert) {
                 Button("Cancel", role: .cancel) {}
@@ -48,8 +50,6 @@ struct TradesView: View {
                         tradeToDelete = nil
                     }
                 }
-            } message: {
-                Text("Are you sure you want to delete this trade? This action cannot be undone.")
             }
         }
     }

@@ -64,25 +64,72 @@ struct NewDashboardView: View {
     let onCreate: (String) -> Void
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 AppTheme.backgroundColor.ignoresSafeArea()
                 
-                VStack(spacing: 24) {
-                    TextField("", text: $name)
-                        .placeholder(when: name.isEmpty) {
-                            Text("Account Name").foregroundColor(.gray)
+                VStack(spacing: 32) {
+                    // Custom Account Icon
+                    ZStack {
+                        // Head circle
+                        Circle()
+                            .stroke(AppTheme.primaryColor, lineWidth: 2)
+                            .frame(width: 36, height: 36)
+                        
+                        // Body arc
+                        Path { path in
+                            path.addArc(
+                                center: CGPoint(x: 18, y: 20),
+                                radius: 18,
+                                startAngle: .degrees(180),
+                                endAngle: .degrees(360),
+                                clockwise: false
+                            )
                         }
-                        .font(.system(size: 17))
-                        .foregroundColor(.white)
-                        .padding()
-                        .background(AppTheme.cardBackground)
-                        .cornerRadius(12)
-                        .padding(.horizontal)
+                        .stroke(AppTheme.primaryColor, lineWidth: 2)
+                        .frame(width: 36, height: 18)
+                        .offset(y: 25)
+                    }
+                    .frame(width: 60, height: 60)
+                    .padding(.top, 40)
+                    
+                    Text("Create New Account")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.white, .white.opacity(0.7)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                    
+                    // Account Name Input
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Account Name")
+                            .font(.headline)
+                            .foregroundColor(.gray)
+                        
+                        TextField("", text: $name)
+                            .placeholder(when: name.isEmpty) {
+                                Text("Enter account name")
+                                    .foregroundColor(.gray.opacity(0.5))
+                            }
+                            .textFieldStyle(.plain)
+                            .foregroundColor(.white)
+                            .padding()
+                            .background(AppTheme.cardBackground)
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                            )
+                    }
+                    .padding(.horizontal)
+                    
+                    Spacer()
                 }
-                .padding(.top, 20)
+                .padding(.top, 100)
             }
-            .navigationTitle("New Account")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

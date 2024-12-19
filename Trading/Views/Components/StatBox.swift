@@ -3,24 +3,41 @@ import SwiftUI
 struct StatBox: View {
     let title: String
     let value: String
-    let icon: String
+    let icon: TradingIcon
     let color: Color
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Image(systemName: icon)
-                    .foregroundColor(color)
                 Text(title)
-                    .foregroundColor(.gray)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(AppTheme.textSecondary)
+                
+                Spacer()
+                
+                Image(systemName: iconName)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(color)
             }
+            
             Text(value)
-                .font(.title3.bold())
-                .foregroundColor(.white)
+                .font(.system(size: 20, weight: .bold))
+                .foregroundStyle(.white)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(Color(red: 0.11, green: 0.12, blue: 0.14))
-        .cornerRadius(12)
+        .padding(16)
+        .background(AppTheme.cardBackground)
+        .cornerRadius(AppTheme.cornerRadius)
+    }
+    
+    private var iconName: String {
+        switch icon {
+        case .bestDay: return "arrow.up.right.circle.fill"
+        case .worstDay: return "arrow.down.right.circle.fill"
+        case .winRate: return "chart.pie.fill"
+        case .riskReward: return "arrow.left.arrow.right.circle.fill"
+        case .dashboard: return "square.grid.2x2.fill"
+        case .journal: return "book.fill"
+        case .trades: return "list.bullet.rectangle.fill"
+        }
     }
 }

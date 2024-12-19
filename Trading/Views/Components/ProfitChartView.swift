@@ -2,13 +2,6 @@ import SwiftUI
 import Charts
 import Foundation
 
-enum ProfitTimeFrame: String, CaseIterable {
-    case total = "Total"
-    case weekly = "Weekly"
-    case monthly = "Monthly"
-    case yearly = "Yearly"
-}
-
 struct TradePoint: Identifiable {
     let id = UUID()
     let date: Date
@@ -57,14 +50,16 @@ struct ProfitChartView: View {
         let calendar = Calendar.current
         let filteredTrades = trades.filter { trade in
             switch selectedTimeFrame {
-            case .total:
+            case .all:
                 return true
-            case .weekly:
+            case .week:
                 return calendar.isDate(trade.exitTime, equalTo: Date(), toGranularity: .weekOfYear)
-            case .monthly:
+            case .month:
                 return calendar.isDate(trade.exitTime, equalTo: Date(), toGranularity: .month)
-            case .yearly:
+            case .year:
                 return calendar.isDate(trade.exitTime, equalTo: Date(), toGranularity: .year)
+            case .day:
+                return calendar.isDate(trade.exitTime, equalTo: Date(), toGranularity: .day)
             }
         }
         
@@ -72,21 +67,9 @@ struct ProfitChartView: View {
         return timeframeProfit < 0
     }
     
-    private var displayData: [TradePoint] {
-        chartData.map { point in
-            if timeframeProfitIsNegative {
-                // Keep red case exactly as it was
-                return TradePoint(date: point.date, profit: -point.profit)
-            } else {
-                // For green, take absolute value to ensure positive direction without flipping
-                return TradePoint(date: point.date, profit: abs(point.profit))
-            }
-        }
-    }
-    
     var body: some View {
         Chart {
-            ForEach(displayData) { point in
+            ForEach(chartData) { point in
                 AreaMark(
                     x: .value("Date", point.date),
                     y: .value("Profit", point.profit * animationProgress)
@@ -99,8 +82,8 @@ struct ProfitChartView: View {
                             (timeframeProfitIsNegative ? Color.red : Color.green).opacity(0.25),
                             (timeframeProfitIsNegative ? Color.red : Color.green).opacity(0.1)
                         ],
-                        startPoint: .bottom,
-                        endPoint: .top
+                        startPoint: .top,
+                        endPoint: .bottom
                     )
                 )
                 

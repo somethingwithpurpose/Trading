@@ -4,37 +4,23 @@ import SwiftData
 @main
 struct TradingApp: App {
     let container: ModelContainer
-    @State private var isLoading = true
     
     init() {
         do {
+            let config = ModelConfiguration(isStoredInMemoryOnly: true)
             let schema = Schema([
-                Dashboard.self,
-                Trade.self
+                Trade.self,
+                Dashboard.self
             ])
-            let config = ModelConfiguration("Trading", schema: schema)
             container = try ModelContainer(for: schema, configurations: config)
         } catch {
-            fatalError("Could not configure container: \(error)")
+            fatalError("Could not initialize ModelContainer: \(error)")
         }
     }
-
+    
     var body: some Scene {
         WindowGroup {
-            ZStack {
-                if isLoading {
-                    LoadingView()
-                } else {
-                    MainTabView()
-                }
-            }
-            .onAppear {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                    withAnimation {
-                        isLoading = false
-                    }
-                }
-            }
+            LoadingView()
         }
         .modelContainer(container)
     }

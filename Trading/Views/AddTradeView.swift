@@ -2,6 +2,9 @@ import SwiftUI
 import SwiftData
 
 struct AddTradeView: View {
+    @Binding var selectedDashboard: Dashboard?
+    @Binding var isPresented: Bool
+    
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     
@@ -169,17 +172,16 @@ struct AddTradeView: View {
                 NavigationView {
                     DatePicker("Select Date", selection: $tradeDate, displayedComponents: [.date, .hourAndMinute])
                         .datePickerStyle(.graphical)
-                        .navigationTitle("Select Date")
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .confirmationAction) {
-                                Button("Done") {
-                                    showingDatePicker = false
-                                }
+                        .preferredColorScheme(.dark)
+                        .padding()
+                        .navigationBarItems(
+                            trailing: Button("Done") {
+                                showingDatePicker = false
                             }
-                        }
-                        .presentationDetents([.medium])
+                        )
                 }
+                .presentationDetents([.medium])
+                .presentationBackground(.black)
             }
         }
     }
@@ -187,21 +189,19 @@ struct AddTradeView: View {
     private func saveTrade() {
         guard let profit = Double(profitLoss) else { return }
         
-        let trade = Trade(
+        let newTrade = Trade(
             symbol: symbol.uppercased(),
-            entryPrice: 0,  // We're simplifying by just tracking P&L
-            exitPrice: 0,   // We're simplifying by just tracking P&L
-            size: 1,        // We're simplifying by just tracking P&L
+            entryPrice: 0,
+            exitPrice: 0,
+            size: 1,
             entryTime: tradeDate,
             exitTime: tradeDate,
-            fees: 0,        // We're simplifying by just tracking P&L
-            isShort: tradeType == .sell
+            fees: 0,
+            isShort: tradeType == .sell,
+            profit: profit
         )
-        
-        // Override the calculated profit with the user-entered value
-        trade.profit = profit
-        
-        modelContext.insert(trade)
+        newTrade.dashboard = selectedDashboard
+        modelContext.insert(newTrade)
         try? modelContext.save()
         dismiss()
     }

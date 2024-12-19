@@ -3,6 +3,7 @@ import SwiftUI
 struct MainTabView: View {
     @State private var selectedTab = 0
     @State private var selectedDashboard: Dashboard?
+    @State private var showingAddTrade = false
     
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -11,7 +12,7 @@ struct MainTabView: View {
                     Label {
                         Text("Dashboard")
                     } icon: {
-                        CustomTabIcon(isSelected: selectedTab == 0, type: .dashboard)
+                        Image(systemName: TradingIcon.dashboard.systemName)
                     }
                 }
                 .tag(0)
@@ -21,22 +22,20 @@ struct MainTabView: View {
                     Label {
                         Text("Journal")
                     } icon: {
-                        CustomTabIcon(isSelected: selectedTab == 1, type: .journal)
+                        Image(systemName: TradingIcon.journal.systemName)
                     }
                 }
                 .tag(1)
             
-            TradesView(selectedDashboard: $selectedDashboard)
+            TradesView(selectedDashboard: $selectedDashboard, showingAddTrade: $showingAddTrade)
                 .tabItem {
                     Label {
                         Text("Trades")
                     } icon: {
-                        CustomTabIcon(isSelected: selectedTab == 2, type: .trades)
+                        Image(systemName: TradingIcon.trades.systemName)
                     }
                 }
                 .tag(2)
         }
-        .tint(AppTheme.primaryColor)
-        .preferredColorScheme(.dark)
     }
 }
