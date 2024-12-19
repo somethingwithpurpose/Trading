@@ -10,6 +10,11 @@ struct DashboardView: View {
     @State private var showingCSVImport = false
     @State private var showingAddTrade = false
     
+    init(selectedDashboard: Binding<Dashboard?>) {
+        self._selectedDashboard = selectedDashboard
+        self._trades = Query()
+    }
+    
     var body: some View {
         NavigationView {
             ZStack {
@@ -106,7 +111,10 @@ struct DashboardView: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $showingAddTrade) {
-                AddTradeView()
+                AddTradeView(
+                    selectedDashboard: $selectedDashboard,
+                    showingAddTrade: $showingAddTrade
+                )
             }
         }
     }

@@ -1,26 +1,6 @@
 import SwiftUI
 import SwiftData
 
-struct CustomIcon: View {
-    let systemName: String
-    let color: Color
-    let size: CGFloat
-    @State private var isAnimating = false
-    
-    var body: some View {
-        Image(systemName: systemName)
-            .font(.system(size: size, weight: .semibold))
-            .foregroundStyle(.linearGradient(colors: [color, color.opacity(0.7)], startPoint: .top, endPoint: .bottom))
-            .shadow(color: color.opacity(0.3), radius: 4, x: 0, y: 2)
-            .scaleEffect(isAnimating ? 1 : 0.9)
-            .onAppear {
-                withAnimation(.spring(response: 0.5, dampingFraction: 0.6).repeatForever(autoreverses: true)) {
-                    isAnimating = true
-                }
-            }
-    }
-}
-
 struct JournalEntryView: View {
     let trade: Trade
     
@@ -54,14 +34,18 @@ struct JournalEntryView: View {
 }
 
 struct JournalView: View {
-    @Binding var selectedDashboard: Dashboard?
-    @Environment(\.modelContext) private var modelContext
     @Query(sort: \Trade.exitTime, order: .reverse) private var trades: [Trade]
     @State private var showingAddTrade = false
     @State private var showingDeleteAlert = false
     @State private var tradeToDelete: Trade?
     @State private var selectedDate: Date = Date()
-    @State private var selectedDetailDate: Date?
+    @State private var selectedDetailDate: Date? = nil
+    @Binding var selectedDashboard: Dashboard?
+    
+    init(selectedDashboard: Binding<Dashboard?>) {
+        self._selectedDashboard = selectedDashboard
+        self._trades = Query()
+    }
     
     private let calendar = Calendar.current
     private let daysOfWeek = ["S", "M", "T", "W", "T", "F", "S"]
@@ -172,23 +156,25 @@ struct JournalView: View {
                         }
                         
                         // Calendar grid
-                        ForEach(weeks, id: \.self) { week in
-                            HStack(spacing: 0) {
-                                ForEach(week.indices, id: \.self) { index in
-                                    if let date = week[index] {
-                                        Button(action: {
+                        LazyVGrid(columns: Array(repeating: GridItem(.fixed(40), spacing: 8), count: 7), spacing: 8) {
+                            // Calendar days
+                            ForEach(weeks.flatMap { $0 }, id: \.self) { date in
+                                if let date = date {
+                                    Button {
+                                        withAnimation(.easeInOut(duration: 0.2)) {
+                                            selectedDate = date
                                             selectedDetailDate = date
-                                        }) {
-                                            DayCell(
-                                                date: date,
-                                                isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
-                                                profit: dailyProfits[calendar.startOfDay(for: date)] ?? 0
-                                            )
                                         }
-                                    } else {
-                                        Color.clear
-                                            .frame(maxWidth: .infinity)
+                                    } label: {
+                                        DayCell(
+                                            date: date,
+                                            isSelected: calendar.isDate(date, inSameDayAs: selectedDetailDate ?? selectedDate),
+                                            profit: dailyProfits[calendar.startOfDay(for: date)] ?? 0
+                                        )
                                     }
+                                } else {
+                                    Color.clear
+                                        .frame(width: 40, height: 40)
                                 }
                             }
                         }
@@ -197,14 +183,17 @@ struct JournalView: View {
                     
                     // Trade List
                     ForEach(filteredTrades) { trade in
-                        TradeListItem(trade: trade)
+                        TradeListItem(trade: trade, selectedDetailDate: $selectedDetailDate)
                     }
                 }
                 .padding(.vertical)
             }
             .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $showingAddTrade) {
-                AddTradeView()
+                AddTradeView(
+                    selectedDashboard: $selectedDashboard,
+                    showingAddTrade: $showingAddTrade
+                )
             }
             .sheet(isPresented: Binding(
                 get: { selectedDetailDate != nil },
@@ -215,56 +204,10 @@ struct JournalView: View {
                         date: date,
                         trades: trades.filter { calendar.isDate($0.exitTime, inSameDayAs: date) }
                     )
+                    .presentationDetents([.large])
+                    .presentationBackground(.black)
+                    .preferredColorScheme(.dark)
                 }
-            }
-        }
-    }
-}
-
-struct TradeListItem: View {
-    let trade: Trade
-    @State private var appear = false
-    
-    var body: some View {
-        HStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(trade.exitTime.formatted(date: .abbreviated, time: .omitted))
-                    .font(.system(size: 17, weight: .medium))
-                
-                HStack(spacing: 8) {
-                    Image(systemName: "chart.xyaxis.line")
-                        .foregroundStyle(.linearGradient(
-                            colors: [.gray, .gray.opacity(0.7)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        ))
-                    Text(trade.symbol)
-                        .foregroundColor(.gray)
-                    Text("\(trade.size, specifier: "%.2f") shares")
-                        .foregroundColor(.gray)
-                }
-                .font(.system(size: 14))
-            }
-            
-            Spacer()
-            
-            Text(trade.profit >= 0 ? "+$\(String(format: "%.2f", trade.profit))" : "-$\(String(format: "%.2f", abs(trade.profit)))")
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundColor(trade.profit >= 0 ? .green : .red)
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(UIColor.systemGray6).opacity(0.1))
-                .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
-        )
-        .padding(.horizontal)
-        .offset(y: appear ? 0 : 20)
-        .opacity(appear ? 1 : 0)
-        .onAppear {
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                appear = true
             }
         }
     }
@@ -275,51 +218,34 @@ private struct DayCell: View {
     let isSelected: Bool
     let profit: Double
     
-    private var backgroundColor: Color {
-        if profit > 0 {
-            return Color.green.opacity(0.15)
-        } else if profit < 0 {
-            return Color.red.opacity(0.15)
-        }
-        return Color.clear
-    }
-    
-    private var borderColor: Color {
-        if isSelected {
-            return .blue
-        } else if profit > 0 {
-            return Color.green.opacity(0.3)
-        } else if profit < 0 {
-            return Color.red.opacity(0.3)
-        }
-        return Color.clear
-    }
-    
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 1) {
             Text("\(Calendar.current.component(.day, from: date))")
-                .font(.system(size: 17, weight: .medium))
+                .font(.system(size: 14, weight: .medium))
                 .foregroundColor(profit != 0 ? .white : .gray)
             
             if profit != 0 {
                 Text(profit >= 0 ? "+$\(String(format: "%.0f", profit))" : "-$\(String(format: "%.0f", abs(profit)))")
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: 9, weight: .medium))
                     .foregroundColor(profit >= 0 ? .green : .red)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: 65)
+        .frame(width: 40, height: 40)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(backgroundColor)
+            RoundedRectangle(cornerRadius: 8)
+                .fill(profit > 0 ? Color.green.opacity(0.15) : 
+                     profit < 0 ? Color.red.opacity(0.15) : 
+                     Color.clear)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(borderColor, lineWidth: isSelected ? 2 : 1)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(isSelected ? Color.blue.opacity(0.5) : Color.clear, lineWidth: 2)
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(isSelected ? Color.blue : 
+                       profit > 0 ? Color.green.opacity(0.3) : 
+                       profit < 0 ? Color.red.opacity(0.3) : 
+                       Color.clear,
+                       lineWidth: isSelected ? 2 : 1)
         )
     }
 }
@@ -329,39 +255,133 @@ struct DayDetailView: View {
     let date: Date
     let trades: [Trade]
     @State private var journalText: String = ""
+    @State private var showingImagePicker = false
+    @State private var selectedImage: UIImage?
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(spacing: 24) {
-                    // Date Header
+                VStack(spacing: 28) {
+                    // Date Header with Gradient Background
                     Text(date.formatted(date: .complete, time: .omitted))
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.white, .white.opacity(0.8)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .padding(.top, 12)
                     
-                    // Trades for the day
+                    // Trade Summary Card
                     if !trades.isEmpty {
-                        VStack(alignment: .leading, spacing: 16) {
-                            Text("Trades")
-                                .font(.headline)
-                                .foregroundColor(.gray)
+                        VStack(spacing: 16) {
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text("Daily Summary")
+                                        .font(.headline)
+                                        .foregroundColor(.gray)
+                                    Text("\(trades.count) \(trades.count == 1 ? "Trade" : "Trades")")
+                                        .font(.subheadline)
+                                        .foregroundColor(.gray.opacity(0.8))
+                                }
+                                Spacer()
+                                let totalProfit = trades.reduce(0) { $0 + $1.profit }
+                                Text(totalProfit >= 0 ? "+$\(String(format: "%.2f", totalProfit))" : "-$\(String(format: "%.2f", abs(totalProfit)))")
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundColor(totalProfit >= 0 ? .green : .red)
+                            }
+                            .padding()
+                            .background(Color(UIColor.systemGray6).opacity(0.1))
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                            )
                             
+                            // Individual Trades
                             ForEach(trades) { trade in
-                                TradeListItem(trade: trade)
+                                TradeListItem(trade: trade, selectedDetailDate: .constant(nil))
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+                    
+                    // File Upload Box
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Trade Files")
+                            .font(.headline)
+                            .foregroundColor(.gray)
+                        
+                        Button {
+                            showingImagePicker = true
+                        } label: {
+                            HStack(spacing: 16) {
+                                Image(systemName: "doc.badge.plus")
+                                    .font(.system(size: 24))
+                                    .foregroundStyle(
+                                        LinearGradient(
+                                            colors: [.blue, .blue.opacity(0.7)],
+                                            startPoint: .top,
+                                            endPoint: .bottom
+                                        )
+                                    )
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Upload Trade Files")
+                                        .font(.system(size: 16, weight: .medium))
+                                        .foregroundColor(.white)
+                                    Text("Add screenshots or documents")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.gray)
+                                }
+                                
+                                Spacer()
+                                
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.gray)
+                            }
+                            .padding()
+                            .background(Color(UIColor.systemGray6).opacity(0.1))
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                            )
+                        }
+                        
+                        if let image = selectedImage {
+                            VStack(spacing: 12) {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(maxHeight: 200)
+                                    .cornerRadius(12)
+                                
+                                Button {
+                                    selectedImage = nil
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "trash")
+                                        Text("Remove File")
+                                    }
+                                    .foregroundColor(.red)
+                                }
                             }
                         }
                     }
+                    .padding(.horizontal)
                     
-                    // Journal Entry
-                    VStack(alignment: .leading, spacing: 12) {
+                    // Journal Entry Section
+                    VStack(alignment: .leading, spacing: 16) {
                         Text("Journal Entry")
                             .font(.headline)
                             .foregroundColor(.gray)
                         
                         TextEditor(text: $journalText)
-                            .frame(minHeight: 200)
+                            .frame(minHeight: 150)
                             .padding()
                             .background(Color(UIColor.systemGray6).opacity(0.1))
                             .cornerRadius(12)
@@ -370,9 +390,11 @@ struct DayDetailView: View {
                                     .stroke(Color.gray.opacity(0.3), lineWidth: 1)
                             )
                     }
+                    .padding(.horizontal)
                 }
-                .padding()
+                .padding(.vertical)
             }
+            .background(Color.black)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -380,27 +402,81 @@ struct DayDetailView: View {
                         saveJournalEntries()
                         dismiss()
                     }
+                    .foregroundColor(.blue)
                 }
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
                         dismiss()
                     }
+                    .foregroundColor(.blue)
                 }
             }
+            .sheet(isPresented: $showingImagePicker) {
+                ImagePicker(image: $selectedImage)
+            }
             .onAppear {
-                // Load existing journal entry if any exists
-                if let firstTrade = trades.first {
-                    journalText = firstTrade.journalEntry ?? ""
-                }
+                loadExistingData()
+            }
+        }
+    }
+    
+    private func loadExistingData() {
+        if let firstTrade = trades.first {
+            journalText = firstTrade.journalEntry ?? ""
+            if let imageData = firstTrade.tradeImage,
+               let uiImage = UIImage(data: imageData) {
+                selectedImage = uiImage
             }
         }
     }
     
     private func saveJournalEntries() {
-        // Save the journal entry to all trades for this day
         for trade in trades {
             trade.journalEntry = journalText
+            if let image = selectedImage,
+               let imageData = image.jpegData(compressionQuality: 0.7) {
+                trade.tradeImage = imageData
+            } else {
+                trade.tradeImage = nil
+            }
         }
         try? modelContext.save()
+    }
+}
+
+struct ImagePicker: UIViewControllerRepresentable {
+    @Binding var image: UIImage?
+    @Environment(\.dismiss) private var dismiss
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.delegate = context.coordinator
+        picker.sourceType = .photoLibrary
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: ImagePicker
+
+        init(_ parent: ImagePicker) {
+            self.parent = parent
+        }
+
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            if let image = info[.originalImage] as? UIImage {
+                parent.image = image
+            }
+            parent.dismiss()
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.dismiss()
+        }
     }
 }

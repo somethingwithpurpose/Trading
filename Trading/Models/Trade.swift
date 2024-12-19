@@ -14,7 +14,9 @@ final class Trade {
     var profit: Double
     var notes: String?
     var journalEntry: String?
-    var dashboard: Dashboard?
+    var tradeImage: Data?
+    
+    @Relationship(inverse: \Dashboard.trades) var dashboard: Dashboard?
     
     init(symbol: String = "",
          entryPrice: Double = 0.0,
@@ -27,6 +29,7 @@ final class Trade {
          profit: Double = 0.0,
          notes: String? = nil,
          journalEntry: String? = nil,
+         tradeImage: Data? = nil,
          dashboard: Dashboard? = nil) {
         self.symbol = symbol
         self.entryPrice = entryPrice
@@ -39,6 +42,7 @@ final class Trade {
         self.profit = profit
         self.notes = notes
         self.journalEntry = journalEntry
+        self.tradeImage = tradeImage
         self.dashboard = dashboard
     }
-}
+} 

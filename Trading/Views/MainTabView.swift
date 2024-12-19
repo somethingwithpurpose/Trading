@@ -26,7 +26,7 @@ struct MainTabView: View {
                 }
                 .tag(1)
             
-            TradesView(selectedDashboard: $selectedDashboard)
+            TradesView(selectedDashboard: $selectedDashboard, showingAddTrade: .constant(false))
                 .tabItem {
                     Label {
                         Text("Trades")

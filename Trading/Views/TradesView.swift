@@ -3,11 +3,17 @@ import SwiftData
 
 struct TradesView: View {
     @Binding var selectedDashboard: Dashboard?
+    @Binding var showingAddTrade: Bool
     @Environment(\.modelContext) private var modelContext
     @Query private var trades: [Trade]
-    @State private var showingAddTrade = false
     @State private var showingDeleteAlert = false
     @State private var tradeToDelete: Trade?
+    
+    init(selectedDashboard: Binding<Dashboard?>, showingAddTrade: Binding<Bool>) {
+        self._selectedDashboard = selectedDashboard
+        self._showingAddTrade = showingAddTrade
+        self._trades = Query()
+    }
     
     var body: some View {
         NavigationView {
@@ -38,7 +44,10 @@ struct TradesView: View {
                 }
             }
             .sheet(isPresented: $showingAddTrade) {
-                AddTradeView()
+                AddTradeView(
+                    selectedDashboard: $selectedDashboard,
+                    showingAddTrade: $showingAddTrade
+                )
             }
             .alert("Delete Trade", isPresented: $showingDeleteAlert) {
                 Button("Cancel", role: .cancel) {}

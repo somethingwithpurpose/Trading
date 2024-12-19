@@ -4,6 +4,8 @@ import SwiftData
 struct AddTradeView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Binding var selectedDashboard: Dashboard?
+    @Binding var showingAddTrade: Bool
     
     @State private var symbol = ""
     @State private var tradeType = TradeType.buy
@@ -165,43 +167,25 @@ struct AddTradeView: View {
                     .disabled(symbol.isEmpty || profitLoss.isEmpty)
                 }
             }
-            .sheet(isPresented: $showingDatePicker) {
-                NavigationView {
-                    DatePicker("Select Date", selection: $tradeDate, displayedComponents: [.date, .hourAndMinute])
-                        .datePickerStyle(.graphical)
-                        .navigationTitle("Select Date")
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .confirmationAction) {
-                                Button("Done") {
-                                    showingDatePicker = false
-                                }
-                            }
-                        }
-                        .presentationDetents([.medium])
-                }
-            }
         }
     }
     
     private func saveTrade() {
         guard let profit = Double(profitLoss) else { return }
         
-        let trade = Trade(
+        let newTrade = Trade(
             symbol: symbol.uppercased(),
-            entryPrice: 0,  // We're simplifying by just tracking P&L
-            exitPrice: 0,   // We're simplifying by just tracking P&L
-            size: 1,        // We're simplifying by just tracking P&L
+            entryPrice: 0,
+            exitPrice: 0,
+            size: 1,
             entryTime: tradeDate,
             exitTime: tradeDate,
-            fees: 0,        // We're simplifying by just tracking P&L
-            isShort: tradeType == .sell
+            fees: 0,
+            isShort: tradeType == .sell,
+            profit: profit
         )
-        
-        // Override the calculated profit with the user-entered value
-        trade.profit = profit
-        
-        modelContext.insert(trade)
+        newTrade.dashboard = selectedDashboard
+        modelContext.insert(newTrade)
         try? modelContext.save()
         dismiss()
     }
